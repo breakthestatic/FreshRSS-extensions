@@ -1,0 +1,8 @@
+{
+	"name": "Mark Read At Bottom",
+	"author": "cdonovan",
+	"description": "When auto mark-as-read on scroll is enabled, marks the remaining visible articles as read once you scroll to the very bottom of the list.",
+	"version": "1.0.0",
+	"entrypoint": "MarkReadAtBottom",
+	"type": "user"
+}
