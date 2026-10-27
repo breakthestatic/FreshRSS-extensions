@@ -14,9 +14,8 @@
 	'use strict';
 
 	const BOTTOM_THRESHOLD_PX = 10; // How close to the bottom counts as "at the bottom"
-	const DEBOUNCE_MS = 250;
 
-	let timerId = 0;
+	let frameId = 0;
 
 	// main.js declares these with top-level let/function, so they live in the
 	// shared global scope but not on window. typeof guards against them missing.
@@ -53,16 +52,37 @@
 			return;
 		}
 		const scope = box === document.scrollingElement ? document : box;
+		let queued = 0;
 		scope.querySelectorAll('.flux.not_read:not(.keep_unread)').forEach(function (div) {
-			if (div.offsetHeight > 0) { // Skip hidden articles
-				mark_read(div, true, true); // only_not_read, batched like FreshRSS's own scroll marking
+			// Skip hidden articles. mark_read returns false when it skips one (e.g. already pending)
+			if (div.offsetHeight > 0 && mark_read(div, true, true) !== false) {
+				queued++;
 			}
 		});
+		if (queued > 0) {
+			flushMarkReadQueue();
+		}
 	}
 
+	// mark_read(..., asBatch) queues IDs and sends them after a 1 s timer.
+	// Send the queue now instead, still as a single request.
+	function flushMarkReadQueue() {
+		if (typeof send_mark_queue_tick !== 'function' ||
+				typeof send_mark_read_queue_timeout === 'undefined') {
+			return; // Internals changed: fall back to FreshRSS's own 1 s timer
+		}
+		clearTimeout(send_mark_read_queue_timeout);
+		send_mark_queue_tick(null);
+	}
+
+	// At most one check per animation frame, so it reacts as soon as the bottom is reached
 	function onScroll() {
-		clearTimeout(timerId);
-		timerId = setTimeout(check, DEBOUNCE_MS);
+		if (frameId === 0) {
+			frameId = requestAnimationFrame(function () {
+				frameId = 0;
+				check();
+			});
+		}
 	}
 
 	// Capture phase catches scrolls on both the window and inner containers (#panel)
